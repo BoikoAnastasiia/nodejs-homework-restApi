@@ -1,58 +1,69 @@
-const Joi = require("joi");
+const Joi = require('joi');
 const mongoose = require('mongoose');
 
-const schemaCreatContact = Joi.object({
-	name: Joi.string().min(3).max(30).required(),
-	email: Joi.string()
-		.email({
-			minDomainSegments: 2,
-			tlds: { allow: ["com", "ru"] },
-		})
-		.required(),
-	phone: Joi.string()
-		.pattern(new RegExp("^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"))
-		.required(),
+const contactAddSchema = Joi.object({
+  name: Joi.string().alphanum().min(3).max(30).required(),
+
+  email: Joi.string()
+    .email({
+      minDomainSegments: 2,
+      tlds: { allow: ['com', 'net'] },
+    })
+    .required(),
+
+  phone: Joi.string()
+    .length(10)
+    .pattern(/^[0-9]+$/)
+    .required(),
+
+  favorite: Joi.boolean().optional(),
 });
 
-const schemaUpdateContact = Joi.object({
-	name: Joi.string().min(3).max(30).optional(),
-	email: Joi.string()
-		.email({
-			minDomainSegments: 2,
-			tlds: { allow: ["com", "net"] },
-		})
-		.optional(),
-	phone: Joi.string()
-		.pattern(new RegExp("^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"))
-		.optional(),
-}).or("name", "phone", "email");
+const contactUpdateSchema = Joi.object({
+  name: Joi.string().alphanum().min(3).max(30).optional(),
 
-const validation = async (schema, obj, next) => {
-	try {
-		await schema.validateAsync(obj);
-		return next();
-	} catch (error) {
-		next({ status: 400, message: error.message.replace(/"/g, "'") });
-	}
-};
+  email: Joi.string()
+    .email({
+      minDomainSegments: 2,
+      tlds: { allow: ['com', 'net'] },
+    })
+    .optional(),
 
-const validationCreatContact = async (req, res, next) => {
-	return await validation(schemaCreatContact, req.body, next);
-};
+  phone: Joi.string()
+    .length(10)
+    .pattern(/^[0-9]+$/)
+    .optional(),
 
-const validationUpdateContact = async (req, res, next) => {
-	return await validation(schemaUpdateContact, req.body, next);
-};
+  favorite: Joi.boolean().optional(),
+}).xor('name', 'email', 'phone', 'favorite');
 
-const validationObjectId = async (req, res, next) => {
-	if (!mongoose.Types.ObjectId.isValid(req.params.contactId)) {
-		return next({ status: 400, message: 'Invalid Object Id' });
-	}
-	next()
+const contactUpdateFavoriteStatusSchema = Joi.object({
+  favorite: Joi.boolean().required(),
+});
+
+const validate = async (schema, contactObj, next) => {
+  try {
+    await schema.validateAsync(contactObj);
+    return next();
+  } catch (err) {
+    next({ status: 400, message: err.message });
+  }
 };
 
 module.exports = {
-	validationCreatContact,
-	validationUpdateContact,
-	validationObjectId,
+  validationAddContact: async (req, res, next) => {
+    return await validate(contactAddSchema, req.body, next);
+  },
+  validationUpdateContact: async (req, res, next) => {
+    return await validate(contactUpdateSchema, req.body, next);
+  },
+  validationUpdateContactFavoriteStatus: async (req, res, next) => {
+    return await validate(contactUpdateFavoriteStatusSchema, req.body, next);
+  },
+  validationObjectId: async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.contactId)) {
+      return next({ status: 400, message: 'Invalid ObjectId' });
+    }
+    next();
+  },
 };
