@@ -9,14 +9,20 @@
     "lint:fix": "eslint --fix **/*.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-flash": "^0.1.1",
     "cors": "2.8.5",
-    "dotenv": "^10.0.0",
     "cross-env": "7.0.3",
-    "express": "4.17.1",
+    "dotenv": "^10.0.0",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "express-session": "^1.17.2",
     "joi": "^17.4.0",
     "mongodb": "^3.6.9",
-    "mongoose": "5.12.5",
-    "morgan": "1.10.0"
+    "mongoose": "^5.12.5",
+    "morgan": "1.10.0",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^7.19.0",
