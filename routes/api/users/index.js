@@ -9,7 +9,6 @@ router
   .post('/login', schema.loginUser, usersController.login)
   .post('/logout', guard, usersController.logout);
 
-router.get('/current', guard, usersController.current);
 router.patch(
   '/',
   guard,

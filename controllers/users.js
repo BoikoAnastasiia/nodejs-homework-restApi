@@ -72,20 +72,6 @@ const logout = async (req, res, next) => {
   }
 };
 
-const current = async (req, res, next) => {
-  const userId = req.user.id;
-
-  try {
-    const user = await Users.findById(userId);
-
-    return res.status(HttpCodes.OK).json({
-      email: user.email,
-      subscription: user.subscription,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 const updateSubscription = async (req, res, next) => {
   const { subscription } = req.body;
@@ -103,4 +89,4 @@ const updateSubscription = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, current, updateSubscription };
+module.exports = { register, login, logout, updateSubscription };
