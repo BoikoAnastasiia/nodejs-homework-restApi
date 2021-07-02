@@ -1,106 +1,147 @@
-require('dotenv').config();
-const jwt = require('jsonwebtoken');
 const Users = require('../model/users');
-const HttpCodes = require('../helpers/httpCodes');
-const JWT_SECRET = process.env.JWT_SECRET;
+const jwt = require('jsonwebtoken');
+const jimp = require('jimp');
+const fs = require('fs/promises');
+const path = require('path');
+const { HttpCode } = require('../helpers/constants');
+require('dotenv').config();
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
 
-const register = async (req, res, next) => {
-  const { email, password } = req.body;
-
+const signUp = async (req, res, next) => {
+  const { email } = req.body;
+  const user = await Users.findByEmail(email);
+  if (user) {
+    return res.status(HttpCode.CONFLICT).json({
+      status: 'error',
+      code: HttpCode.CONFLICT,
+      message: 'Email in use',
+    });
+  }
   try {
-    const user = await Users.findByEmail(email);
-
-    if (user) {
-      return res.status(HttpCodes.CONFLICT).json({
-        message: 'Email in use',
-      });
-    }
-
-    const newUser = await Users.create(email, password);
-
-    return res.status(HttpCodes.CREATED).json({
-      user: {
+    const newUser = await Users.create(req.body);
+    return res.status(HttpCode.CREATED).json({
+      status: 'success',
+      code: HttpCode.CREATED,
+      data: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatar: newUser.avatar,
       },
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    console.log('test');
+    next(e);
   }
 };
 
-const login = async (req, res, next) => {
+const logIn = async (req, res, next) => {
   const { email, password } = req.body;
-
-  try {
-    const user = await Users.findByEmail(email);
-    const isValidPassword = await user?.validPassword(password);
-
-    if (!user || !isValidPassword) {
-      return res.status(HttpCodes.UNAUTHORIZED).json({
-        message: 'Email or password is wrong',
-      });
-    }
-
-    const id = user._id;
-    const payload = { id };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '3h' });
-
-    await Users.updateToken(id, token);
-
-    return res.status(HttpCodes.OK).json({
-      token,
+  const user = await Users.findByEmail(email);
+  const isValidPassword = user?.validPassword(password);
+  if (!user || !isValidPassword) {
+    return res.status(HttpCode.UNAUTHORIZED).json({
+      status: 'error',
+      code: HttpCode.UNAUTHORIZED,
+      message: 'Email or password is wrong',
+    });
+  }
+  const payload = { id: user.id };
+  const token = jwt.sign(payload, JWT_SECRET_KEY, { expiresIn: '2h' });
+  await Users.updateToken(user.id, token);
+  return res.status(HttpCode.OK).json({
+    status: 'success',
+    code: HttpCode.OK,
+    message: {
+      token: token,
       user: {
         email: user.email,
         subscription: user.subscription,
       },
-    });
-  } catch (error) {
-    next(error);
-  }
+    },
+  });
 };
 
-const logout = async (req, res, next) => {
-  const userId = req.user.id;
-
-  try {
-    await Users.updateToken(userId, null);
-
-    return res.status(HttpCodes.NO_CONTENT).json({});
-  } catch (error) {
-    next(error);
-  }
+const logOut = async (req, res, next) => {
+  const id = req.user.id;
+  await Users.updateToken(id, null);
+  return res.status(HttpCode.NO_CONTENT).json({});
 };
 
-const current = async (req, res, next) => {
-  const userId = req.user.id;
-
-  try {
-    const user = await Users.findById(userId);
-
-    return res.status(HttpCodes.OK).json({
+const currentRequest = async (req, res, next) => {
+  const id = req.user.id;
+  const user = await Users.findById(id);
+  return res.json({
+    status: 'success',
+    code: 200,
+    data: {
       email: user.email,
       subscription: user.subscription,
-    });
-  } catch (error) {
-    next(error);
-  }
+    },
+  });
 };
 
-const updateSubscription = async (req, res, next) => {
-  const { subscription } = req.body;
-  const userId = req.user.id;
-
+const updateSubscriptionStatus = async (req, res, next) => {
   try {
-    const user = await Users.updateSubscription(userId, subscription);
-
-    return res.status(HttpCodes.OK).json({
-      email: user.email,
-      subscription: user.subscription,
-    });
-  } catch (error) {
-    next(error);
+    const userId = req.user?.id;
+    const user = await Users.updateSubscription(userId, req.body);
+    if (user) {
+      return res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          user,
+        },
+      });
+    } else {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        data: { message: 'missing fields' },
+      });
+    }
+  } catch (err) {
+    next(err);
   }
 };
 
-module.exports = { register, login, logout, current, updateSubscription };
+const updateAvatar = async (req, res, next) => {
+  const { id } = req.user;
+  const avatarUrl = await saveAvatarUser(req);
+  await Users.updateAvatar(id, avatarUrl);
+  return res
+    .status(HttpCode.OK)
+    .json({ status: 'success', code: HttpCode.OK, data: { avatarUrl } });
+};
+
+const saveAvatarUser = async req => {
+  const FOLDER_AVATARS = process.env.FOLDER_AVATARS;
+  const pathFile = req.file.path;
+  const newNameAvatar = `${Date.now().toString()}-${req.file.originalname}`;
+  const img = await jimp.read(pathFile);
+  await img
+    .autocrop()
+    .cover(250, 250, jimp.HORIZONTAL_ALIGN_CENTER | jimp.VERTICAL_ALIGN_MIDDLE)
+    .writeAsync(pathFile);
+  try {
+    await fs.rename(
+      pathFile,
+      path.join(process.cwd(), 'public', FOLDER_AVATARS, newNameAvatar)
+    );
+  } catch (error) {
+    console.log(error.message);
+  }
+  const oldAvatar = req.user.avatar;
+  if (oldAvatar.includes(`${FOLDER_AVATARS}/`)) {
+    await fs.unlink(path.join(process.cwd(), 'public', oldAvatar));
+  }
+  return path.join(FOLDER_AVATARS, newNameAvatar).replace('\\', '/');
+};
+
+module.exports = {
+  signUp,
+  logIn,
+  logOut,
+  currentRequest,
+  updateSubscriptionStatus,
+  updateAvatar,
+};
