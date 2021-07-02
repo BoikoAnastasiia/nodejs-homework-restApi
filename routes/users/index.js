@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ctrls = require('../../controllers/users');
 const guard = require('../../helpers/guard');
-const uploadAvatar = require('../../helpers/upload-avatar');
+const uploadAvatar = require('../../helpers/uploadAvatar');
 
 router.patch('/', guard, ctrls.updateSubscriptionStatus);
 router.post('/signup', ctrls.signUp);
