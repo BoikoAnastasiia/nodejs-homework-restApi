@@ -1,28 +1,44 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const DB_CONNECT = process.env.DB_CONNECT;
+const User = require('./schemas/user');
 
-const db = mongoose.connect(DB_CONNECT, {
-  useFindAndModify: false,
-  useCreateIndex: true,
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const findById = async contactId => {
+  return await User.findOne({ _id: contactId });
+};
 
-mongoose.connection.on('connected', () =>
-  console.log('Mongoose connected to db')
-);
-mongoose.connection.on('error', error =>
-  console.log(`Mongoose connection error: ${error.message}`)
-);
-mongoose.connection.on('disconnected', () =>
-  console.log('Mongoose disconnected')
-);
+const findByEmail = async email => {
+  return await User.findOne({ email });
+};
 
-process.on('SIGINT', async () => {
-  await mongoose.connection.close();
-  console.log('Mongoose connection closed and app exit');
-  process.exit(1);
-});
+const create = async userOptions => {
+  const user = new User(userOptions);
+  return await user.save();
+};
 
-module.exports = db;
+const updateToken = async (contactId, token) => {
+  return await User.updateOne({ _id: contactId }, { token });
+};
+
+const updateAvatar = async (contactId, avatar) => {
+  return await User.updateOne({ _id: contactId }, { avatar });
+};
+
+const updateSubscription = async (userId, body) => {
+  if (Object.keys(body).length !== 0) {
+    const result = await User.findByIdAndUpdate(
+      { _id: userId },
+      { ...body },
+      { new: true }
+    );
+    return result;
+  } else {
+    return null;
+  }
+};
+
+module.exports = {
+  findById,
+  findByEmail,
+  create,
+  updateToken,
+  updateSubscription,
+  updateAvatar,
+};

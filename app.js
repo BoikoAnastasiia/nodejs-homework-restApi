@@ -1,30 +1,30 @@
 const express = require('express');
 const logger = require('morgan');
 const cors = require('cors');
-const HttpCodes = require('./helpers/httpCodes');
+const helmet = require('helmet');
 
-const usersRouter = require('./routes/api/users');
-const contactsRouter = require('./routes/api/contacts');
+const contactsRouter = require('./routes/contacts');
+const usersRouter = require('./routes/users');
 
 const app = express();
 
 const formatsLogger = app.get('env') === 'development' ? 'dev' : 'short';
 
-app.use(logger(formatsLogger));
+app.use(helmet());
+app.get('env') !== 'test' && app.use(logger(formatsLogger));
+app.use(express.static('public'));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: 100000 }));
 
 app.use('/api/users', usersRouter);
 app.use('/api/contacts', contactsRouter);
 
-app.use((_req, res) => {
-  res.status(HttpCodes.NOT_FOUND).json({ message: 'Not found' });
+app.use((req, res) => {
+  res.status(err.status || 404).json({ message: 'Not found' });
 });
 
-app.use((err, _req, res, _next) => {
-  res
-    .status(err.status || HttpCodes.SERVER_ERROR)
-    .json({ message: err.message || 'unknown error' });
+app.use((err, req, res, next) => {
+  res.status(err.status || 500).json({ message: err.message });
 });
 
 module.exports = app;
