@@ -32,7 +32,7 @@ class EmailService {
         intro: 'Hello there! We are happy to seeing you',
         action: {
           instructions:
-            'To verify that it is realy you? please click on the button below',
+            'To verify that it is realy you, please click on the button below',
           button: {
             color: '#22BC66',
             text: 'Confirm your account',
